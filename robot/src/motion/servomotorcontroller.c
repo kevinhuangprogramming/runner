@@ -1,48 +1,36 @@
+#include <Wire.h>
+#include <AccelStepper.h>
 
- #include <Servo.h>
- #include "BluetoothSerial.h"
+float pitch = 0;
+float roll  = 0;
 
-// bluetooth 
-BluetoothSerial SerialBT;
+// balance tuning
+float Kp_pitch = 2.0;
+float Kp_roll  = 2.0;
 
-// servo object 
-Servo hipL, kneeL, ankleL;
-Servo hipR, kneeR, ankleR;
+#define AS5600_ADDR 0x36
 
-// pin configuration 
-const int HIP_L_PIN = 2;
-const int KNEE_L_PIN = 3;
-const int ANKLE_L_PIN = 4;
-const int HIP_R_PIN = 5;
-const int KNEE_R_PIN = 6;
-const int ANKLE_R_PIN = 7;
+// LEFT LEG
+AccelStepper hipL(AccelStepper::DRIVER, 2, 3);
+AccelStepper kneeL(AccelStepper::DRIVER, 4, 5);
+AccelStepper ankleL(AccelStepper::DRIVER, 6, 7);
 
-// servo position storage 
-// Current positions
-float hipL_pos = 90;
-float kneeL_pos = 90;
-float ankleL_pos = 90;
+// RIGHT LEG
+AccelStepper hipR(AccelStepper::DRIVER, 8, 9);
+AccelStepper kneeR(AccelStepper::DRIVER, 10, 11);
+AccelStepper ankleR(AccelStepper::DRIVER, 12, 13);
 
-float hipR_pos = 90;
-float kneeR_pos = 90;
-float ankleR_pos = 90;
+long hipL_target = 0;
+long kneeL_target = 0;
+long ankleL_target = 0;
 
-// Target positions
-float hipL_target = 90;
-float kneeL_target = 90;
-float ankleL_target = 90;
+long hipR_target = 0;
+long kneeR_target = 0;
+long ankleR_target = 0;
 
-float hipR_target = 90;
-float kneeR_target = 90;
-float ankleR_target = 90;
+int hipL_enc, kneeL_enc, ankleL_enc;
+int hipR_enc, kneeR_enc, ankleR_enc;
 
-// servo settings 
-const float servoSpeed = 0.8;
-
-const int SERVO_MIN = 20;
-const int SERVO_MAX = 160;
-
-// robots state 
 enum RobotState {
   IDLE,
   WALK_FORWARD,
@@ -54,105 +42,124 @@ enum RobotState {
 
 RobotState currentState = IDLE;
 
-// walking timing 
+// timing
 unsigned long previousStepTime = 0;
-const int stepInterval = 600;
+const int stepInterval = 300;
 
+// gait toggle
 bool leftStep = true;
 
-// command 
-char command = 'S';
-
-// setup 
 void setup() {
-
   Serial.begin(115200);
+  Wire.begin();
 
+  initIMU();
 
-  // Attach servos
-  hipL.attach(HIP_L_PIN);
-  kneeL.attach(KNEE_L_PIN);
-  ankleL.attach(ANKLE_L_PIN);
+  // stepper setup
+  hipL.setMaxSpeed(800);
+  kneeL.setMaxSpeed(800);
+  ankleL.setMaxSpeed(800);
 
-  hipR.attach(HIP_R_PIN);
-  kneeR.attach(KNEE_R_PIN);
-  ankleR.attach(ANKLE_R_PIN);
+  hipR.setMaxSpeed(800);
+  kneeR.setMaxSpeed(800);
+  ankleR.setMaxSpeed(800);
 
-  // Neutral stance
   standPose();
 }
 
-// loop 
 void loop() {
 
-  readController();
-
-  processCommand();
+  readIMU();
+  readEncoders();
 
   updateMovement();
 
-  updateServos();
+  applyIMUBalance();
+  applyEncoderCorrection();
 
-  writeServos();
-
-  safetyCheck();
+  writeSteppers();
 }
 
-// read bluetooth commands 
-void readController() {
-
-  if (SerialBT.available()) {
-
-    command = SerialBT.read();
-
-    Serial.print("Command: ");
-    Serial.println(command);
-  }
+void initIMU() {
+  Serial.println("IMU initialized");
 }
 
-void processCommand() {
+void readIMU() {
+  // TODO: replace with real MPU6050 code
 
-  switch(command) {
-
-    case 'F':
-      currentState = WALK_FORWARD;
-      break;
-
-    case 'B':
-      currentState = WALK_BACKWARD;
-      break;
-
-    case 'L':
-      currentState = TURN_LEFT;
-      break;
-
-    case 'R':
-      currentState = TURN_RIGHT;
-      break;
-
-    case 'S':
-      currentState = IDLE;
-      standPose();
-      break;
-
-    case 'X':
-      emergencyStop();
-      break;
-  }
+  pitch = 0;
+  roll  = 0;
 }
 
+void applyIMUBalance() {
+
+  float pitchCorr = pitch * Kp_pitch;
+  float rollCorr  = roll  * Kp_roll;
+
+  hipL_target -= rollCorr;
+  hipR_target += rollCorr;
+
+  kneeL_target += pitchCorr;
+  kneeR_target += pitchCorr;
+}
+
+int readAS5600() {
+  Wire.beginTransmission(AS5600_ADDR);
+  Wire.write(0x0C);
+  Wire.endTransmission();
+
+  Wire.requestFrom(AS5600_ADDR, 2);
+
+  int high = Wire.read();
+  int low  = Wire.read();
+
+  return ((high << 8) | low) & 0x0FFF;
+}
+
+void readEncoders() {
+
+  hipL_enc   = readAS5600();
+  kneeL_enc  = readAS5600();
+  ankleL_enc = readAS5600();
+
+  hipR_enc   = readAS5600();
+  kneeR_enc  = readAS5600();
+  ankleR_enc = readAS5600();
+}
+
+// convert encoder to step range
+long encToSteps(int enc) {
+  return map(enc, 0, 4095, -500, 500);
+}
+
+void applyEncoderCorrection() {
+
+  float Kp_enc = 0.6;
+
+  long hipL_actual   = encToSteps(hipL_enc);
+  long kneeL_actual  = encToSteps(kneeL_enc);
+  long ankleL_actual = encToSteps(ankleL_enc);
+
+  long hipR_actual   = encToSteps(hipR_enc);
+  long kneeR_actual  = encToSteps(kneeR_enc);
+  long ankleR_actual = encToSteps(ankleR_enc);
+
+  hipL_target   += (hipL_target - hipL_actual) * Kp_enc;
+  kneeL_target  += (kneeL_target - kneeL_actual) * Kp_enc;
+  ankleL_target += (ankleL_target - ankleL_actual) * Kp_enc;
+
+  hipR_target   += (hipR_target - hipR_actual) * Kp_enc;
+  kneeR_target  += (kneeR_target - kneeR_actual) * Kp_enc;
+  ankleR_target += (ankleR_target - ankleR_actual) * Kp_enc;
+}
 
 void updateMovement() {
 
-  unsigned long currentTime = millis();
+  if (millis() - previousStepTime < stepInterval) return;
 
-  if (currentTime - previousStepTime < stepInterval) {
-    return;
-  }
+  previousStepTime = millis();
 
-  previousStepTime = currentTime;
-
-  switch(currentState) {
+  switch (currentState) {
 
     case WALK_FORWARD:
       stepForward();
@@ -171,6 +178,7 @@ void updateMovement() {
       break;
 
     case IDLE:
+      standPose();
       break;
 
     case STOPPED:
@@ -178,170 +186,76 @@ void updateMovement() {
   }
 }
 
-// walk forward 
 void stepForward() {
 
   if (leftStep) {
-
-    setPose(
-      70, 60, 110,
-      110, 100, 80
-    );
-
+    setPose( 200, 100, 50,
+            -200, 100, 50);
   } else {
-
-    setPose(
-      110, 100, 80,
-      70, 60, 110
-    );
+    setPose(-200, 100, 50,
+             200, 100, 50);
   }
 
   leftStep = !leftStep;
 }
 
-// back walk 
 void stepBackward() {
 
   if (leftStep) {
-
-    setPose(
-      110, 60, 80,
-      70, 100, 110
-    );
-
+    setPose(-200, 100, 50,
+             200, 100, 50);
   } else {
-
-    setPose(
-      70, 100, 110,
-      110, 60, 80
-    );
+    setPose( 200, 100, 50,
+            -200, 100, 50);
   }
 
   leftStep = !leftStep;
 }
 
-// turn left 
 void turnLeft() {
-
-  setPose(
-    80, 70, 100,
-    110, 100, 80
-  );
+  setPose(-200, 120, 60,
+           200, 80, 40);
 }
 
-// turn right 
 void turnRight() {
-
-  setPose(
-    110, 100, 80,
-    80, 70, 100
-  );
+  setPose(200, 120, 60,
+         -200, 80, 40);
 }
 
-// stand 
 void standPose() {
-
-  setPose(
-    90, 90, 90,
-    90, 90, 90
-  );
+  setPose(0, 0, 0,
+          0, 0, 0);
 }
 
-// emergency stop
-void emergencyStop() {
 
-  currentState = STOPPED;
+void setPose(long hL, long kL, long aL,
+             long hR, long kR, long aR) {
 
-  hipL.detach();
-  kneeL.detach();
-  ankleL.detach();
+  hipL_target   = hL;
+  kneeL_target  = kL;
+  ankleL_target = aL;
 
-  hipR.detach();
-  kneeR.detach();
-  ankleR.detach();
-
-  Serial.println("EMERGENCY STOP");
+  hipR_target   = hR;
+  kneeR_target  = kR;
+  ankleR_target = aR;
 }
 
-// set target 
-void setPose(
-  float hL,
-  float kL,
-  float aL,
-  float hR,
-  float kR,
-  float aR
-) {
+void writeSteppers() {
 
-  hipL_target =
-    constrain(hL, SERVO_MIN, SERVO_MAX);
+  hipL.moveTo(hipL_target);
+  kneeL.moveTo(kneeL_target);
+  ankleL.moveTo(ankleL_target);
 
-  kneeL_target =
-    constrain(kL, SERVO_MIN, SERVO_MAX);
+  hipR.moveTo(hipR_target);
+  kneeR.moveTo(kneeR_target);
+  ankleR.moveTo(ankleR_target);
 
-  ankleL_target =
-    constrain(aL, SERVO_MIN, SERVO_MAX);
+  hipL.run();
+  kneeL.run();
+  ankleL.run();
 
-  hipR_target =
-    constrain(hR, SERVO_MIN, SERVO_MAX);
-
-  kneeR_target =
-    constrain(kR, SERVO_MIN, SERVO_MAX);
-
-  ankleR_target =
-    constrain(aR, SERVO_MIN, SERVO_MAX);
+  hipR.run();
+  kneeR.run();
+  ankleR.run();
 }
-
-// smooth servo 
-void updateServos() {
-
-  hipL_pos =
-    smoothMove(hipL_pos, hipL_target);
-
-  kneeL_pos =
-    smoothMove(kneeL_pos, kneeL_target);
-
-  ankleL_pos =
-    smoothMove(ankleL_pos, ankleL_target);
-
-  hipR_pos =
-    smoothMove(hipR_pos, hipR_target);
-
-  kneeR_pos =
-    smoothMove(kneeR_pos, kneeR_target);
-
-  ankleR_pos =
-    smoothMove(ankleR_pos, ankleR_target);
-}
-
-// smooth move 
-float smoothMove(float current, float target) {
-
-  if (abs(target - current) < servoSpeed) {
-    return target;
-  }
-
-  if (current < target) {
-    current += servoSpeed;
-  }
-  else {
-    current -= servoSpeed;
-  }
-
-  return current;
-}
-
-// write servos 
-void writeServos() {
-
-  hipL.write(hipL_pos);
-  kneeL.write(kneeL_pos);
-  ankleL.write(ankleL_pos);
-
-  hipR.write(hipR_pos);
-  kneeR.write(kneeR_pos);
-  ankleR.write(ankleR_pos);
-}
-
-// safety code 
 
