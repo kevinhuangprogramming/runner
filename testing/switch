@@ -1,0 +1,15 @@
+// wire: pin 4 and gnd 
+
+const int buttonPin = 4;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(buttonPin, INPUT_PULLUP);
+}
+
+void loop() {
+  if (digitalRead(buttonPin) == LOW) {
+    Serial.println("Button Pressed");
+  }
+  delay(100);
+}
