@@ -1,0 +1,20 @@
+// STEP → GPIO26
+// DIR  → GPIO27
+
+#define STEP_PIN 26
+#define DIR_PIN 27
+
+void setup() {
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+
+  digitalWrite(DIR_PIN, HIGH);
+}
+
+void loop() {
+  digitalWrite(STEP_PIN, HIGH);
+  delayMicroseconds(500);
+
+  digitalWrite(STEP_PIN, LOW);
+  delayMicroseconds(500);
+}
