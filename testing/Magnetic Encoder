@@ -1,0 +1,21 @@
+/*VCC → 3.3V
+GND → GND
+SDA → GPIO21
+SCL → GPIO22*/
+
+#include <Wire.h>
+#include <AS5600.h>
+
+AS5600 encoder;
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+}
+
+void loop() {
+  Serial.print("Angle: ");
+  Serial.println(encoder.readAngle());
+
+  delay(100);
+}
