@@ -1,7 +1,7 @@
 
 // first motor 
-#define fmotor_step 2 
-#define fmotor_dir 3 
+#define fmotor_step 14
+#define fmotor_dir 12
 
 // second motor 
 #define smotor_step 4 
