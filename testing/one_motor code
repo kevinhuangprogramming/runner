@@ -1,0 +1,28 @@
+// include stepper motor libary 
+#include <AccelStepper.h>
+
+// created a motor object 
+AccelStepper motor(AccelStepper::DRIVER, 2, 3);
+
+void setup()
+{   
+    // max speed 
+    motor.setMaxSpeed(2000);
+    // set acceleration 
+    motor.setAcceleration(1000);
+
+    // move 1000 steps 
+    motor.moveTo(1000);
+}
+
+void loop()
+{
+    // move motor 
+    motor.run();
+
+    // check if movement was successful 
+    if(motor.distanceToGo() == 0)
+    {
+        motor.moveTo(-motor.currentPosition());
+    }
+}
