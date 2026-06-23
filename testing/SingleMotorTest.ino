@@ -55,16 +55,16 @@ void moveFor5Seconds() {
   while (millis() - startTime < 5000) {
 
     // step 3 motors 
-    digitalWrite(fmotor_dir, HIGH);
-    digitalWrite(smotor_dir, HIGH);
-    digitalWrite(tmotor_dir, HIGH);
+    digitalWrite(fmotor_step, HIGH);
+    digitalWrite(smotor_step, HIGH);
+    digitalWrite(tmotor_step, HIGH);
     
     delayMicroseconds(pulseDelay);
 
     // low 
-   digitalWrite(fmotor_dir, LOW);
-   digitalWrite(smotor_dir, LOW);
-   digitalWrite(tmotor_dir, LOW);
+   digitalWrite(fmotor_step, LOW);
+   digitalWrite(smotor_step, LOW);
+   digitalWrite(tmotor_step, LOW);
     
     delayMicroseconds(pulseDelay);
   }
