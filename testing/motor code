@@ -1,0 +1,51 @@
+#include <AccelStepper.h>
+
+// Left leg
+AccelStepper hipL  (AccelStepper::DRIVER, 2, 3);
+AccelStepper kneeL (AccelStepper::DRIVER, 4, 5);
+AccelStepper ankleL(AccelStepper::DRIVER, 6, 7);
+
+// Right leg
+AccelStepper hipR  (AccelStepper::DRIVER, 8, 9);
+AccelStepper kneeR (AccelStepper::DRIVER,10,11);
+AccelStepper ankleR(AccelStepper::DRIVER,12,13);
+
+AccelStepper* motors[] =
+{
+    &hipL,
+    &kneeL,
+    &ankleL,
+    &hipR,
+    &kneeR,
+    &ankleR
+};
+
+void setup()
+{
+    for(int i = 0; i < 6; i++)
+    {
+        motors[i]->setMaxSpeed(2000);
+        motors[i]->setAcceleration(1000);
+    }
+
+    hipL.moveTo(500);
+    kneeL.moveTo(500);
+    ankleL.moveTo(500);
+
+    hipR.moveTo(-500);
+    kneeR.moveTo(-500);
+    ankleR.moveTo(-500);
+}
+
+void loop()
+{
+    for(int i = 0; i < 6; i++)
+    {
+        motors[i]->run();
+
+        if(motors[i]->distanceToGo() == 0)
+        {
+            motors[i]->moveTo(-motors[i]->currentPosition());
+        }
+    }
+}
