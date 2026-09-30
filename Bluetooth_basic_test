@@ -4,6 +4,13 @@
 BluetoothSerial SerialBT; 
 
 
+// ESP32 PINS 
+const int left_pin = ; 
+const int right_pin = ; 
+// their direction pins 
+const int left_dir = ; 
+const int right_dir = ; 
+
 /*
 enum command {
 MOVE, 
@@ -31,6 +38,14 @@ SerialBT.begin("RUNNER");
 
 Serial.println("Bluetooth started"); 
 
+pinMode(left_pin, OUTPUT);
+pinMode(right_pin, OUTPUT);
+pinMode(left_dir, OUTPUT);
+pinMode(right_dir, OUTPUT);
+
+// to do: start with the motors off 
+
+
 }
 
 void loop() {
@@ -49,8 +64,10 @@ Serial.println(command);
 SerialBT.print("Received: ");
 SerialBT.println(command);
 
-// rough commands 
+// ENCODER  + PID
 
+
+// rough commands (to do: fix according to target based on PID)
 if (command == 'MOVE') {
 Serial.println("Command: MOVE");
 
