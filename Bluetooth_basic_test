@@ -1,0 +1,50 @@
+#include "BluetoothSerial.h"
+
+// create bluetooth object 
+BluetoothSerial SerialBT; 
+
+
+/*
+enum command {
+MOVE, 
+STOP, 
+STATUS
+};
+
+struct RobotC {
+command type; 
+float velocity; 
+}; 
+
+// idk do we have velocity for each leg seperately - yes right
+*/
+
+void setup() {
+
+// start serial communication (115200 = baud rate) 
+Serial.begin(115200); 
+
+SerialBT.begin("RUNNER"); 
+
+Serial.println("Bluetooth started"); 
+
+}
+
+void loop() {
+
+// check if data is waiting 
+if (SerialBT.available()) {
+
+// read command and store in command 
+string command = SerialBT.readStringUntil('\n'); 
+
+// print for serial monitor 
+Serial.print("Received: ");
+Serial.println(command);
+
+// print for bluetooth
+SerialBT.print("Received: ");
+SerialBT.println(command);
+
+}
+} 
