@@ -11,6 +11,9 @@ STOP,
 STATUS
 };
 
+// need to add move forward and backward 
+// turn left and right 
+
 struct RobotC {
 command type; 
 float velocity; 
@@ -45,6 +48,31 @@ Serial.println(command);
 // print for bluetooth
 SerialBT.print("Received: ");
 SerialBT.println(command);
+
+// rough commands 
+
+if (command == 'MOVE') {
+Serial.println("Command: MOVE");
+
+// to do: add robot movements 
+}
+
+else if (command == 'STOP') {
+Serial.println("Command: STOP");
+
+// to do:  stop all motors 
+}
+
+else if (command == 'STATUS') {
+Serial.println("Command: STATUS");
+
+// to do : return status of the robot 
+}
+
+else {
+Serial.println("Command: INVALID"); 
+}
+
 
 }
 } 
